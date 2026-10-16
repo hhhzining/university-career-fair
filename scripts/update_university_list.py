@@ -11,7 +11,7 @@
     python update_university_list.py                                  # 自动定位教育部官网最新名单公告页
     python update_university_list.py --page-url <名单公告页URL>       # 指定名单公告页（推荐，定位失败时用）
     python update_university_list.py --xls <本地名单.xls>             # 直接解析本地已下载的名单文件
-    python update_university_list.py --output <输出CSV路径>           # 指定输出路径
+    python update_university_list.py --output <输出CSV路径>           # 指定输出路径（默认 stdout 同目录 universities.csv）
 
 输出 CSV 列：省份,城市,学校名称,学校标识码,主管部门,办学层次,备注
 脚本会打印本科高校总数及分省统计供核对（教育部 2026-06-17 版为 1412 所）。
@@ -57,6 +57,7 @@ def fetch_text(url):
                 return resp.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as e:
             last_err = e
+            # 418 等反爬响应：换 https/http 重试一次
             continue
         except Exception as e:
             last_err = e
@@ -120,10 +121,12 @@ def parse_university_xls(data):
     for r in range(sh.nrows):
         vals = [sh.cell_value(r, c) for c in range(sh.ncols)]
         first = str(vals[0]).strip() if vals else ""
+        # 省份分组行
         m = PROV_LINE.match(first)
         if m:
             province = m.group(1).strip()
             continue
+        # 数据行：序号为数字，且第 6 列（办学层次）为"本科"
         if len(vals) >= 6 and isinstance(vals[0], (int, float)):
             level = str(vals[5]).strip()
             if level != "本科":
